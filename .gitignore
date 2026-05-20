@@ -1,0 +1,30 @@
+# Build folders
+build/
+build-*/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Qt Creator
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.user
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Binary files
+*.o
+*.a
+*.so
+*.dylib
+*.app
