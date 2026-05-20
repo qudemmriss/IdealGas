@@ -27,6 +27,8 @@ qt_add_executable(IdealGas_
     ${PROJECT_SOURCES}
     SimulationWidget.h
     SimulationWidget.cpp
+    GraphsWindow.h
+    GraphsWindow.cpp
 )
 
 target_link_libraries(IdealGas_ PRIVATE

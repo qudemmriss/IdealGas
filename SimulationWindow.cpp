@@ -1,5 +1,6 @@
 #include "SimulationWindow.h"
 #include "SimulationWidget.h"
+#include "GraphsWindow.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -29,7 +30,7 @@ SimulationWindow::SimulationWindow(QWidget *parent)
         "border-radius: 10px;"
         "background-color: #4A90E2;"
         "color: white;"
-        "background-image:url(/Users/angelinamirnaa/IdealGas_/jeonghan.png);"
+        "background-image:url(/Users/angelinamirnaa/IdealGas_/cat.jpg);"
         "}"
         "QPushButton:hover {"
         "background-color: #357ABD;"
@@ -66,15 +67,20 @@ SimulationWindow::SimulationWindow(QWidget *parent)
     tableButton->setFixedSize(200, 50);
     resetButton->setFixedSize(200, 50);
 
-    controlPanel->addStretch();
+    connect(graphicsButton, &QPushButton::clicked, this, [this](){
+        GraphDialog* dialog = new GraphDialog(this);
+        dialog->exec();
+
+    });
+
     controlPanel->addWidget(tempLabel);
     controlPanel->addWidget(tempSlider);
     controlPanel->addWidget(countLabel);
     controlPanel->addWidget(countSlider);
 
-    buttonPanel->addWidget(graphicsButton);
-    buttonPanel->addWidget(tableButton);
-    buttonPanel->addWidget(resetButton);
+    buttonPanel->addWidget(graphicsButton, 0, Qt::AlignTop);
+    buttonPanel->addWidget(tableButton, 0, Qt::AlignTop);
+    buttonPanel->addWidget(resetButton, 0, Qt::AlignTop);
 
     mainLayout1->addLayout(controlPanel, 1);
     mainLayout1->addWidget(sim, 3);
