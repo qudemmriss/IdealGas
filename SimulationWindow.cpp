@@ -8,10 +8,20 @@
 #include <QLabel>
 #include <QSlider>
 #include <QPushButton>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QScrollArea>
+#include <QTimer>
 
 SimulationWindow::SimulationWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    connect(&statsTimer,
+            &QTimer::timeout,
+            this,
+            &SimulationWindow::updateStatistics);
+
+    statsTimer.start(200);
     setWindowTitle("Simulation");
     resize(1200, 700);
 
@@ -20,7 +30,7 @@ SimulationWindow::SimulationWindow(QWidget *parent)
 
     QHBoxLayout* mainLayout = new QHBoxLayout(centralWidget);
 
-    SimulationWidget* sim = new SimulationWidget(centralWidget);
+    sim = new SimulationWidget(centralWidget);
     sim->setMinimumSize(800, 600);
 
     setStyleSheet(
@@ -30,34 +40,49 @@ SimulationWindow::SimulationWindow(QWidget *parent)
         "border-radius: 10px;"
         "background-color: #4A90E2;"
         "color: white;"
-        "background-image:url(/Users/angelinamirnaa/IdealGas_/cat.jpg);"
         "}"
         "QPushButton:hover {"
         "background-color: #357ABD;"
         "}"
         );
 
-    QVBoxLayout* mainLayout1 = new QVBoxLayout();
+    QVBoxLayout* leftSide = new QVBoxLayout();
     QVBoxLayout* controlPanel = new QVBoxLayout();
+    QVBoxLayout* rightSide = new QVBoxLayout();
     QHBoxLayout* buttonPanel = new QHBoxLayout();
 
-    QLabel* tempLabel = new QLabel("Температура");
+
     QSlider* tempSlider = new QSlider(Qt::Horizontal);
     tempSlider->setFixedSize(300, 25);
     tempSlider->setRange(1, 100);
     tempSlider->setValue(50);
+    QLabel* tempValueLabel = new QLabel("Температура: " + QString::number(tempSlider->value()));
+    tempValueLabel->setStyleSheet("font-size: 16px; color: black;");
 
-    QLabel* countLabel = new QLabel("Количество частиц");
     QSlider* countSlider = new QSlider(Qt::Horizontal);
     countSlider->setFixedSize(300, 25);
-    countSlider->setRange(10, 300);
+    countSlider->setRange(10, 500);
     countSlider->setValue(100);
+    QLabel* countValueLabel = new QLabel("Количество частиц: " + QString::number(countSlider->value()));
+    countValueLabel->setStyleSheet("font-size: 16px; color: black;");
 
     connect(tempSlider, &QSlider::valueChanged,
             sim, &SimulationWidget::setTemperature);
 
+    connect(tempSlider, &QSlider::valueChanged,
+        [tempValueLabel](int value)
+        {
+            tempValueLabel->setText("Температура: " + QString::number(value));
+        });
+
     connect(countSlider, &QSlider::valueChanged,
             sim, &SimulationWidget::setParticleCount);
+
+    connect(countSlider, &QSlider::valueChanged,
+        [countValueLabel](int value)
+        {
+            countValueLabel->setText("Количество частиц: " + QString::number(value));
+        });
 
     graphicsButton = new QPushButton("Показать графики");
     tableButton = new QPushButton("Показать результаты");
@@ -67,24 +92,78 @@ SimulationWindow::SimulationWindow(QWidget *parent)
     tableButton->setFixedSize(200, 50);
     resetButton->setFixedSize(200, 50);
 
-    connect(graphicsButton, &QPushButton::clicked, this, [this](){
-        GraphDialog* dialog = new GraphDialog(this);
-        dialog->exec();
+    connect(graphicsButton,
+            &QPushButton::clicked,
+            this,
+            [this]()
+            {
+                GraphDialog* dialog =
+                    new GraphDialog(this->sim, this);
 
-    });
+                dialog->exec();
+            });
 
-    controlPanel->addWidget(tempLabel);
+    statsTable = new QTableWidget(5, 2);
+
+    statsTable->setHorizontalHeaderLabels(
+        {"Параметр", "Значение"}
+        );
+
+    statsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+    statsTable->setItem(0, 0, new QTableWidgetItem("Температура"));
+    statsTable->setItem(1, 0, new QTableWidgetItem("Количество частиц"));
+    statsTable->setItem(2, 0, new QTableWidgetItem("Средняя скорость"));
+    statsTable->setItem(3, 0, new QTableWidgetItem("Средняя кинетическая энергия"));
+    statsTable->setItem(4, 0, new QTableWidgetItem("Давление"));
+
+    for (int row = 0; row < 5; ++row)
+    {
+        statsTable->setItem(row, 1, new QTableWidgetItem(""));
+    }
+    controlPanel->addWidget(tempValueLabel);
     controlPanel->addWidget(tempSlider);
-    controlPanel->addWidget(countLabel);
+    controlPanel->addWidget(countValueLabel);
     controlPanel->addWidget(countSlider);
 
     buttonPanel->addWidget(graphicsButton, 0, Qt::AlignTop);
     buttonPanel->addWidget(tableButton, 0, Qt::AlignTop);
     buttonPanel->addWidget(resetButton, 0, Qt::AlignTop);
 
-    mainLayout1->addLayout(controlPanel, 1);
-    mainLayout1->addWidget(sim, 3);
+    leftSide->addLayout(controlPanel, 1);
+    leftSide->addWidget(sim, 3);
 
-    mainLayout->addLayout(mainLayout1, 1);
-    mainLayout->addLayout(buttonPanel, 6);
+    rightSide->addLayout(buttonPanel);
+    rightSide->addWidget(statsTable, Qt::AlignCenter);
+
+    mainLayout->addLayout(leftSide, 1);
+    mainLayout->addLayout(rightSide, 6);
+}
+
+void SimulationWindow::updateStatistics()
+{
+    statsTable->item(0,1)->setText(
+        QString::number(
+            sim->getTemperature(), 'f', 2
+            ));
+
+    statsTable->item(1,1)->setText(
+        QString::number(
+            sim->getParticleCount()
+            ));
+
+    statsTable->item(2,1)->setText(
+        QString::number(
+            sim->getAverageSpeed(), 'f', 4
+            ));
+
+    statsTable->item(3,1)->setText(
+        QString::number(
+            sim->getAverageEnergy(), 'f', 4
+            ));
+
+    statsTable->item(4,1)->setText(
+        QString::number(
+            sim->getPressure(), 'f', 4
+            ));
 }

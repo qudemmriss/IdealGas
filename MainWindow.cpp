@@ -1,11 +1,11 @@
-#include "mainwindow.h"
+#include "MainWindow.h"
 #include "SimulationWindow.h"
+#include "Constants.h"
 
 #include <QGraphicsDropShadowEffect>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <QMessageBox>
 #include <QDialog>
 #include <QScrollArea>
 #include <QLabel>
@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     setStyleSheet(
         "QMainWindow {"
-        "background-image: url(/Users/angelinamirnaa/IdealGas_/elsa.jpg);"
+        "background-image: url(/Users/angelinamirnaa/IdealGas_/3.jpg);"
         "background-repeat: no-repeat;"
         "background-position: center;"
         "}"
@@ -97,31 +97,7 @@ void MainWindow::showAbout()
     layout->setSpacing(15);
     layout->setContentsMargins(20, 20, 20, 20);
 
-    QLabel* textLabel = new QLabel(
-        "Программа предназначена для:\n"
-        "   - Моделирования поведения частиц идеального газа на основе\n"
-        "  положений молекулярно-кинетической теории в ограниченном сосуде;\n"
-        "   - Вычисления следующих макроскопических параметров системы:\n"
-        "           1. средняя скорость движения молекул;\n"
-        "           2. средняя кинетическая энергия молекул;\n"
-        "           3. давление на стенки сосуда.\n"
-        "   - Отображения следующих графиков:\n"
-        "           1. распределение скоростей (гистограмма и кривая Максвелла);\n"
-        "           2. распределение по компонентам v_x,v_y,v_z разными цветами\n"
-        "               в одной плоскости;\n"
-        "           3. зависимость давления P(t) на стенках сосуда.\n\n"
-        "Данная программа может использоваться студентами и учениками школ\n"
-        "для выполнения лабораторных и курсовых работ по молекулярной физике;\n"
-        "преподавателями для демонстрации движения молекул идеального газа и\n"
-        "сопутствующих показателей и изменений; в прочих учебных целях для\n"
-        "визуализации статистических закономерностей.\n\n"
-        "Программа предусмотрена для эксплуатации на персональных\n"
-        "компьютерах в учебных аудиториях и домашних условиях. Эксплуатация\n"
-        "осуществляется пользователями без специальной подготовки в области\n"
-        "программирования.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
-        "Разработчицы: Букетова Д. С., Мирная А. В..\n"
-        "Краснодар, ФГБОУ ВО «КубГУ», 2026.\n"
-        );
+    QLabel* textLabel = new QLabel(ABOUT_TEXT);
 
     textLabel->setWordWrap(true);
     textLabel->setStyleSheet("font-size: 18px; padding: 20px;");

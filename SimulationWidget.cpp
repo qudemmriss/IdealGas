@@ -3,11 +3,14 @@
 #include <QRandomGenerator>
 #include <QMatrix4x4>
 #include <cmath>
+#include <QMouseEvent>
+#include <QWheelEvent>
 
 SimulationWidget::SimulationWidget(QWidget* parent)
     : QOpenGLWidget(parent)
 {
     setUpdateBehavior(QOpenGLWidget::NoPartialUpdate);
+    setFocusPolicy(Qt::StrongFocus);
 
     createParticles(100);
 
@@ -42,9 +45,9 @@ void SimulationWidget::createParticles(int count)
         p.y = QRandomGenerator::global()->generateDouble() * 1.8 - 0.9;
         p.z = QRandomGenerator::global()->generateDouble() * 1.8 - 0.9;
 
-        p.vx = QRandomGenerator::global()->generateDouble() * 0.02 - 0.01;
-        p.vy = QRandomGenerator::global()->generateDouble() * 0.02 - 0.01;
-        p.vz = QRandomGenerator::global()->generateDouble() * 0.02 - 0.01;
+        p.vx = QRandomGenerator::global()->generateDouble() * 2.0 - 1.0;
+        p.vy = QRandomGenerator::global()->generateDouble() * 2.0 - 1.0;
+        p.vz = QRandomGenerator::global()->generateDouble() * 2.0 - 1.0;
 
         particles.push_back(p);
     }
@@ -93,7 +96,7 @@ void SimulationWidget::initializeGL()
         }
         else
         {
-            FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            FragColor = vec4(1.0, 0.41, 0.71, 1.0);
         }
     })");
 
@@ -108,6 +111,41 @@ void SimulationWidget::resizeGL(int w, int h)
     glViewport(0, 0, w, h);
 }
 
+void SimulationWidget::mousePressEvent(QMouseEvent* event)
+{
+    lastMousePosition = event->pos();
+}
+
+void SimulationWidget::mouseMoveEvent(QMouseEvent* event)
+{
+    int dx = event->x() - lastMousePosition.x();
+    int dy = event->y() - lastMousePosition.y();
+
+    rotationY += dx * 0.5f;
+    rotationX += dy * 0.5f;
+
+    lastMousePosition = event->pos();
+
+    update();
+}
+
+void SimulationWidget::wheelEvent(QWheelEvent* event)
+{
+    QPoint numDegrees = event->angleDelta();
+
+    if (!numDegrees.isNull())
+    {
+        cameraDistance -= numDegrees.y() * 0.01f;
+
+        if (cameraDistance < 2.0f)
+            cameraDistance = 2.0f;
+
+        if (cameraDistance > 15.0f)
+            cameraDistance = 15.0f;
+
+        update();
+    }
+}
 void SimulationWidget::paintGL()
 {
     glClearColor(0.05f, 0.05f, 0.12f, 1.0f);
@@ -120,11 +158,11 @@ void SimulationWidget::paintGL()
                            100.0f);
 
     QMatrix4x4 view;
-    view.translate(0.0f, 0.0f, -5.0f);
+    view.translate(0.0f, 0.0f, -cameraDistance);
 
     QMatrix4x4 model;
-    model.rotate(25.0f, 1, 0, 0);
-    model.rotate(35.0f, 0, 1, 0);
+    model.rotate(rotationX, 1, 0, 0);
+    model.rotate(rotationY, 0, 1, 0);
 
     QMatrix4x4 mvp = projection * view * model;
 
@@ -220,49 +258,124 @@ void SimulationWidget::updateParticleBuffer()
 
 void SimulationWidget::resolveCollision(Particle& a, Particle& b)
 {
+    // Вектор между центрами частиц
     float dx = b.x - a.x;
     float dy = b.y - a.y;
     float dz = b.z - a.z;
 
-    float dist2 = dx*dx + dy*dy + dz*dz;
+    // Квадрат расстояния
+    float dist2 = dx * dx + dy * dy + dz * dz;
+
+    // Минимальная дистанция касания
     float minDist = a.radius + b.radius;
 
+    // Если частицы не касаются
     if (dist2 >= minDist * minDist)
         return;
 
     float dist = std::sqrt(dist2);
-    if (dist == 0) return;
 
+    if (dist < 0.0001f)
+        dist = 0.0001f;
+
+    // Нормаль столкновения
     float nx = dx / dist;
     float ny = dy / dist;
     float nz = dz / dist;
 
-    std::swap(a.vx, b.vx);
-    std::swap(a.vy, b.vy);
-    std::swap(a.vz, b.vz);
+    // Относительная скорость
+    float rvx = a.vx - b.vx;
+    float rvy = a.vy - b.vy;
+    float rvz = a.vz - b.vz;
 
-    float overlap = 0.5f * (minDist - dist);
+    // Скорость вдоль нормали
+    float velAlongNormal =
+        rvx * nx +
+        rvy * ny +
+        rvz * nz;
 
-    a.x -= overlap * nx;
-    a.y -= overlap * ny;
-    a.z -= overlap * nz;
+    // Если частицы уже разлетаются
+    if (velAlongNormal > 0)
+        return;
 
-    b.x += overlap * nx;
-    b.y += overlap * ny;
-    b.z += overlap * nz;
+    // Коэффициент упругости
+    float restitution = 1.0f;
+
+    // Импульс столкновения
+    float impulse =
+        -(1.0f + restitution) * velAlongNormal;
+
+    impulse /= (1.0f / a.mass + 1.0f / b.mass);
+
+    // Компоненты импульса
+    float impulseX = impulse * nx;
+    float impulseY = impulse * ny;
+    float impulseZ = impulse * nz;
+
+    // Меняем скорости
+    a.vx += impulseX / a.mass;
+    a.vy += impulseY / a.mass;
+    a.vz += impulseZ / a.mass;
+
+    b.vx -= impulseX / b.mass;
+    b.vy -= impulseY / b.mass;
+    b.vz -= impulseZ / b.mass;
+
+    // Раздвигаем частицы,
+    // чтобы они не залипали друг в друге
+    float overlap = minDist - dist;
+
+    float correction = overlap * 0.5f;
+
+    a.x -= correction * nx;
+    a.y -= correction * ny;
+    a.z -= correction * nz;
+
+    b.x += correction * nx;
+    b.y += correction * ny;
+    b.z += correction * nz;
+}
+
+void SimulationWidget::resolveWallCollision(
+    float& pos,
+    float& vel,
+    float radius)
+{
+    const float min = -1.0f + radius;
+    const float max =  1.0f - radius;
+
+    if (pos < min)
+    {
+        pos = min;
+
+        float impulse =
+            2.0f * std::abs(vel);
+
+        pressureAccumulator += impulse;
+
+        vel = std::abs(vel);
+    }
+
+    if (pos > max)
+    {
+        pos = max;
+
+        float impulse =
+            2.0f * std::abs(vel);
+
+        pressureAccumulator += impulse;
+
+        vel = -std::abs(vel);
+    }
 }
 
 void SimulationWidget::updateSimulation()
 {
     for (auto& p : particles)
     {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.z += p.vz;
-
-        if (p.x < -1 || p.x > 1) p.vx *= -1;
-        if (p.y < -1 || p.y > 1) p.vy *= -1;
-        if (p.z < -1 || p.z > 1) p.vz *= -1;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.z += p.vz * dt;
     }
 
     for (size_t i = 0; i < particles.size(); ++i)
@@ -273,8 +386,160 @@ void SimulationWidget::updateSimulation()
         }
     }
 
+    for (auto& p : particles)
+    {
+        resolveWallCollision(p.x, p.vx, p.radius);
+        resolveWallCollision(p.y, p.vy, p.radius);
+        resolveWallCollision(p.z, p.vz, p.radius);
+    }
+
+    currentPressure = pressureAccumulator / (6.0f * wallArea * dt);
+
+    pressureAccumulator = 0.0f;
+
+    float targetTemperature = 1.0f;
+
+    float currentEnergy = 0.0f;
+
+    for (const auto& p : particles)
+    {
+        currentEnergy +=
+            p.vx * p.vx +
+            p.vy * p.vy +
+            p.vz * p.vz;
+    }
+
+    float currentTemperature =
+        currentEnergy / particles.size();
+
+    float scale =
+        std::sqrt(
+            targetTemperature
+            / currentTemperature
+            );
+
+    for (auto& p : particles)
+    {
+        p.vx *= scale;
+        p.vy *= scale;
+        p.vz *= scale;
+    }
+
     updateParticleBuffer();
     update();
+
+}
+
+float SimulationWidget::getPressure() const
+{
+    return currentPressure;
+}
+
+float SimulationWidget::getTemperature() const
+{
+    float energy = 0.0f;
+
+    for (const auto& p : particles)
+    {
+        energy +=
+            p.vx * p.vx +
+            p.vy * p.vy +
+            p.vz * p.vz;
+    }
+
+    return energy / particles.size();
+}
+std::vector<float> SimulationWidget::getSpeeds() const
+{
+    std::vector<float> speeds;
+
+    for (const auto& p : particles)
+    {
+        float v = std::sqrt(
+            p.vx * p.vx +
+            p.vy * p.vy +
+            p.vz * p.vz
+            );
+
+        speeds.push_back(v);
+    }
+
+    return speeds;
+}
+
+std::vector<float> SimulationWidget::getVX() const
+{
+    std::vector<float> values;
+
+    for (const auto& p : particles)
+        values.push_back(p.vx);
+
+    return values;
+}
+
+std::vector<float> SimulationWidget::getVY() const
+{
+    std::vector<float> values;
+
+    for (const auto& p : particles)
+        values.push_back(p.vy);
+
+    return values;
+}
+
+std::vector<float> SimulationWidget::getVZ() const
+{
+    std::vector<float> values;
+
+    for (const auto& p : particles)
+        values.push_back(p.vz);
+
+    return values;
+}
+
+float SimulationWidget::getAverageSpeed() const
+{
+    float sum = 0.0f;
+
+    for (const auto& p : particles)
+    {
+        float v = std::sqrt(
+            p.vx * p.vx +
+            p.vy * p.vy +
+            p.vz * p.vz
+            );
+
+        sum += v;
+    }
+
+    return sum / particles.size();
+}
+
+float SimulationWidget::getAverageEnergy() const
+{
+    float sum = 0.0f;
+
+    for (const auto& p : particles)
+    {
+        float v2 =
+            p.vx * p.vx +
+            p.vy * p.vy +
+            p.vz * p.vz;
+
+        sum += 0.5f * p.mass * v2;
+    }
+
+    return sum / particles.size();
+}
+
+int SimulationWidget::getParticleCount() const
+{
+    return particles.size();
+}
+
+float SimulationWidget::consumePressure()
+{
+    return currentPressure;
 }
 
 void SimulationWidget::setTemperature(float value)

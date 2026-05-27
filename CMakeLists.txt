@@ -9,13 +9,13 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets OpenGLWidgets OpenGL)
+find_package(Qt6 REQUIRED COMPONENTS Widgets OpenGLWidgets OpenGL Charts)
 
 set(PROJECT_SOURCES
     main.cpp
-    mainwindow.cpp
-    mainwindow.h
-    mainwindow.ui
+    MainWindow.cpp
+    MainWindow.h
+    MainWindow.ui
     SimulationWindow.h
     SimulationWindow.cpp
     SimulationWidget.h
@@ -29,12 +29,14 @@ qt_add_executable(IdealGas_
     SimulationWidget.cpp
     GraphsWindow.h
     GraphsWindow.cpp
+    Constants.h
 )
 
 target_link_libraries(IdealGas_ PRIVATE
     Qt6::Widgets
     Qt6::OpenGLWidgets
     Qt6::OpenGL
+    Qt6::Charts
 )
 
 set_target_properties(IdealGas_ PROPERTIES
