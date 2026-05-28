@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     setStyleSheet(
         "QMainWindow {"
-        "background-image: url(/Users/angelinamirnaa/IdealGas_/3.jpg);"
+        "background-image: url(:/new/prefix1/3.jpg);"
         "background-repeat: no-repeat;"
         "background-position: center;"
         "}"

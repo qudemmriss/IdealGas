@@ -30,6 +30,7 @@ qt_add_executable(IdealGas_
     GraphsWindow.h
     GraphsWindow.cpp
     Constants.h
+    Resource.qrc
 )
 
 target_link_libraries(IdealGas_ PRIVATE
