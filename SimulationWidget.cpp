@@ -96,7 +96,7 @@ void SimulationWidget::initializeGL()
         }
         else
         {
-            FragColor = vec4(1.0, 0.41, 0.71, 1.0);
+            FragColor = vec4(1.0, 1.0, 1.0, 1.0);
         }
     })");
 
@@ -256,84 +256,181 @@ void SimulationWidget::updateParticleBuffer()
                  GL_DYNAMIC_DRAW);
 }
 
-void SimulationWidget::resolveCollision(Particle& a, Particle& b)
+std::unordered_map<long long, GridCell> spatialGrid;
+
+float cellSize = 0.06f;
+
+long long SimulationWidget::hashCell(
+    int x,
+    int y,
+    int z) const
 {
-    // Вектор между центрами частиц
+    const long long p1 = 73856093;
+    const long long p2 = 19349663;
+    const long long p3 = 83492791;
+
+    return
+        (x * p1) ^
+        (y * p2) ^
+        (z * p3);
+}
+
+void SimulationWidget::buildSpatialGrid()
+{
+    spatialGrid.clear();
+
+    for (int i = 0; i < particles.size(); ++i)
+    {
+        const auto& p = particles[i];
+
+        int cx = static_cast<int>(
+            std::floor(p.x / cellSize));
+
+        int cy = static_cast<int>(
+            std::floor(p.y / cellSize));
+
+        int cz = static_cast<int>(
+            std::floor(p.z / cellSize));
+
+        long long h = hashCell(cx, cy, cz);
+
+        spatialGrid[h].particles.push_back(i);
+    }
+}
+
+void SimulationWidget::solveCollisions()
+{
+    for (int i = 0; i < particles.size(); ++i)
+    {
+        auto& p = particles[i];
+
+        int cx = static_cast<int>(
+            std::floor(p.x / cellSize));
+
+        int cy = static_cast<int>(
+            std::floor(p.y / cellSize));
+
+        int cz = static_cast<int>(
+            std::floor(p.z / cellSize));
+
+        // Проверяем свою и соседние клетки
+        for (int dx = -1; dx <= 1; ++dx)
+        {
+            for (int dy = -1; dy <= 1; ++dy)
+            {
+                for (int dz = -1; dz <= 1; ++dz)
+                {
+                    long long h =
+                        hashCell(
+                            cx + dx,
+                            cy + dy,
+                            cz + dz);
+
+                    auto it = spatialGrid.find(h);
+
+                    if (it == spatialGrid.end())
+                        continue;
+
+                    const auto& cellParticles =
+                        it->second.particles;
+
+                    for (int j : cellParticles)
+                    {
+                        if (j <= i)
+                            continue;
+
+                        resolveCollision(
+                            particles[i],
+                            particles[j]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void SimulationWidget::resolveCollision(
+    Particle& a,
+    Particle& b)
+{
     float dx = b.x - a.x;
     float dy = b.y - a.y;
     float dz = b.z - a.z;
 
-    // Квадрат расстояния
-    float dist2 = dx * dx + dy * dy + dz * dz;
+    float dist2 =
+        dx * dx +
+        dy * dy +
+        dz * dz;
 
-    // Минимальная дистанция касания
-    float minDist = a.radius + b.radius;
+    float minDist =
+        a.radius + b.radius;
 
-    // Если частицы не касаются
     if (dist2 >= minDist * minDist)
         return;
 
     float dist = std::sqrt(dist2);
 
-    if (dist < 0.0001f)
-        dist = 0.0001f;
+    if (dist < 1e-6f)
+        return;
 
-    // Нормаль столкновения
     float nx = dx / dist;
     float ny = dy / dist;
     float nz = dz / dist;
 
-    // Относительная скорость
-    float rvx = a.vx - b.vx;
-    float rvy = a.vy - b.vy;
-    float rvz = a.vz - b.vz;
+    float rvx = b.vx - a.vx;
+    float rvy = b.vy - a.vy;
+    float rvz = b.vz - a.vz;
 
-    // Скорость вдоль нормали
     float velAlongNormal =
         rvx * nx +
         rvy * ny +
         rvz * nz;
 
-    // Если частицы уже разлетаются
-    if (velAlongNormal > 0)
+    // Уже разлетаются
+    if (velAlongNormal > 0.0f)
         return;
 
-    // Коэффициент упругости
     float restitution = 1.0f;
 
-    // Импульс столкновения
-    float impulse =
-        -(1.0f + restitution) * velAlongNormal;
+    float invMassA = 1.0f / a.mass;
+    float invMassB = 1.0f / b.mass;
 
-    impulse /= (1.0f / a.mass + 1.0f / b.mass);
+    float j = -(1.0f + restitution) * velAlongNormal;
 
-    // Компоненты импульса
-    float impulseX = impulse * nx;
-    float impulseY = impulse * ny;
-    float impulseZ = impulse * nz;
+    j /= (invMassA + invMassB);
 
-    // Меняем скорости
-    a.vx += impulseX / a.mass;
-    a.vy += impulseY / a.mass;
-    a.vz += impulseZ / a.mass;
+    float impulseX = j * nx;
+    float impulseY = j * ny;
+    float impulseZ = j * nz;
 
-    b.vx -= impulseX / b.mass;
-    b.vy -= impulseY / b.mass;
-    b.vz -= impulseZ / b.mass;
+    a.vx -= impulseX * invMassA;
+    a.vy -= impulseY * invMassA;
+    a.vz -= impulseZ * invMassA;
 
-    // Раздвигаем частицы,
-    // чтобы они не залипали друг в друге
+    b.vx += impulseX * invMassB;
+    b.vy += impulseY * invMassB;
+    b.vz += impulseZ * invMassB;
+
+    // Position correction
     float overlap = minDist - dist;
 
-    float correction = overlap * 0.5f;
+    constexpr float percent = 0.8f;
 
-    a.x -= correction * nx;
-    a.y -= correction * ny;
-    a.z -= correction * nz;
+    float correction = overlap * percent;
 
-    b.x += correction * nx;
-    b.y += correction * ny;
-    b.z += correction * nz;
+    float correctionX = correction * nx;
+    float correctionY = correction * ny;
+    float correctionZ = correction * nz;
+
+    float totalInvMass = invMassA + invMassB;
+
+    a.x -= correctionX * (invMassA / totalInvMass);
+    a.y -= correctionY * (invMassA / totalInvMass);
+    a.z -= correctionZ * (invMassA / totalInvMass);
+
+    b.x += correctionX * (invMassB / totalInvMass);
+    b.y += correctionY * (invMassB / totalInvMass);
+    b.z += correctionZ * (invMassB / totalInvMass);
 }
 
 void SimulationWidget::resolveWallCollision(
@@ -348,8 +445,7 @@ void SimulationWidget::resolveWallCollision(
     {
         pos = min;
 
-        float impulse =
-            2.0f * std::abs(vel);
+        float impulse = 2.0f * std::abs(vel);
 
         pressureAccumulator += impulse;
 
@@ -360,8 +456,7 @@ void SimulationWidget::resolveWallCollision(
     {
         pos = max;
 
-        float impulse =
-            2.0f * std::abs(vel);
+        float impulse = 2.0f * std::abs(vel);
 
         pressureAccumulator += impulse;
 
@@ -371,63 +466,67 @@ void SimulationWidget::resolveWallCollision(
 
 void SimulationWidget::updateSimulation()
 {
-    for (auto& p : particles)
-    {
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.z += p.vz * dt;
-    }
+    constexpr int substeps = 4;
 
-    for (size_t i = 0; i < particles.size(); ++i)
+    float subDt = dt / substeps;
+
+    for (int step = 0; step < substeps; ++step)
     {
-        for (size_t j = i + 1; j < particles.size(); ++j)
+        // integrate
+        for (auto& p : particles)
         {
-            resolveCollision(particles[i], particles[j]);
+            p.x += p.vx * subDt;
+            p.y += p.vy * subDt;
+            p.z += p.vz * subDt;
+        }
+
+        // broad phase
+        buildSpatialGrid();
+
+        // narrow phase
+        solveCollisions();
+
+        // walls
+        for (auto& p : particles)
+        {
+            resolveWallCollision(
+                p.x,
+                p.vx,
+                p.radius);
+
+            resolveWallCollision(
+                p.y,
+                p.vy,
+                p.radius);
+
+            resolveWallCollision(
+                p.z,
+                p.vz,
+                p.radius);
         }
     }
 
-    for (auto& p : particles)
-    {
-        resolveWallCollision(p.x, p.vx, p.radius);
-        resolveWallCollision(p.y, p.vy, p.radius);
-        resolveWallCollision(p.z, p.vz, p.radius);
-    }
-
-    currentPressure = pressureAccumulator / (6.0f * wallArea * dt);
+    currentPressure =
+        pressureAccumulator
+        / (6.0f * wallArea * dt);
 
     pressureAccumulator = 0.0f;
 
-    float targetTemperature = 1.0f;
-
-    float currentEnergy = 0.0f;
-
-    for (const auto& p : particles)
-    {
-        currentEnergy +=
-            p.vx * p.vx +
-            p.vy * p.vy +
-            p.vz * p.vz;
-    }
-
-    float currentTemperature =
-        currentEnergy / particles.size();
-
-    float scale =
-        std::sqrt(
-            targetTemperature
-            / currentTemperature
-            );
-
-    for (auto& p : particles)
-    {
-        p.vx *= scale;
-        p.vy *= scale;
-        p.vz *= scale;
-    }
-
     updateParticleBuffer();
-    update();
 
+    update();
+}
+
+void SimulationWidget::resetSimulation()
+{
+    setTemperature(50);
+    setParticleCount(100);
+
+    particles.clear();
+
+    initParticles();
+
+    currentPressure = 0;
 }
 
 float SimulationWidget::getPressure() const
@@ -539,11 +638,14 @@ int SimulationWidget::getParticleCount() const
 
 float SimulationWidget::consumePressure()
 {
-    return currentPressure;
+    float p = currentPressure;
+    currentPressure = 0.0f;
+    return p;
 }
 
 void SimulationWidget::setTemperature(float value)
 {
+    displayedTemperature = value;
     float scale = std::sqrt(value / currentTemperature);
 
     for (auto& p : particles)
@@ -554,6 +656,11 @@ void SimulationWidget::setTemperature(float value)
     }
 
     currentTemperature = value;
+}
+
+float SimulationWidget::getDisplayedTemperature() const
+{
+    return displayedTemperature;
 }
 
 void SimulationWidget::setParticleCount(int count)

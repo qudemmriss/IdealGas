@@ -40,9 +40,7 @@ private:
 
     QChart* speedChart;
 
-    QBarSeries* histogramSeries;
-    QBarSet* histogramSet;
-
+    QLineSeries* experimentalSeries;
     QSplineSeries* maxwellSeries;
 
     QValueAxis* speedAxisX;

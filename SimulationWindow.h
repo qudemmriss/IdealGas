@@ -19,6 +19,7 @@ public:
 
 private slots:
     void updateStatistics();
+    void resetSimulation();
 
 private:
     SimulationWidget* sim;
@@ -26,7 +27,6 @@ private:
     QPushButton *tableButton;
     QPushButton *resetButton;
     QTableWidget* statsTable;
-    QTimer statsTimer;
 
 };
 

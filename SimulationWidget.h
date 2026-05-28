@@ -8,6 +8,8 @@
 #include <vector>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <unordered_map>
+#include <cmath>
 
 struct Particle
 {
@@ -16,6 +18,11 @@ struct Particle
 
     float radius = 0.03f;
     float mass = 1.0f;
+};
+
+struct GridCell
+{
+    std::vector<int> particles;
 };
 
 class SimulationWidget : public QOpenGLWidget,
@@ -29,12 +36,19 @@ public:
 
     void setTemperature(float value);
     void setParticleCount(int count);
+    void resetSimulation();
 
     float getPressure() const;
     float getTemperature() const;
     float getAverageSpeed() const;
     float getAverageEnergy() const;
     int getParticleCount() const;
+    float getDisplayedTemperature() const;
+
+    long long hashCell(
+        int x,
+        int y,
+        int z) const;
 
     std::vector<float> getSpeeds() const;
 
@@ -61,8 +75,10 @@ private:
     void updateParticleBuffer();
     void createParticles(int count);
 
-    void resolveWallCollision(float& pos, float& vel, float radius);
+    void buildSpatialGrid();
 
+    void resolveWallCollision(float& pos, float& vel, float radius);
+    void solveCollisions();
     void resolveCollision(Particle& a, Particle& b);
 
     std::vector<Particle> particles;
@@ -83,6 +99,8 @@ private:
     float rotationY = 35.0f;
 
     float cameraDistance = 5.0f;
+
+    float displayedTemperature = 0.0f;
 
     const float dt = 0.016f;
     const float wallArea = 4.0f;

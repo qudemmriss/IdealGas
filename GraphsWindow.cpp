@@ -20,40 +20,31 @@ GraphDialog::GraphDialog(
 
     // MAXWELL
 
-    histogramSet =
-        new QBarSet("Эксперимент");
+    experimentalSeries = new QLineSeries();
+    experimentalSeries->setName("Эксперимент");
+    experimentalSeries->setColor(Qt::blue);
 
-    histogramSeries =
-        new QBarSeries();
-
-    histogramSeries->append(histogramSet);
-
-    maxwellSeries =
-        new QSplineSeries();
-
+    maxwellSeries = new QSplineSeries();
     maxwellSeries->setName("Теория Максвелла");
     maxwellSeries->setColor(Qt::red);
 
     speedChart = new QChart();
 
-    speedChart->addSeries(histogramSeries);
+    speedChart->addSeries(experimentalSeries);
     speedChart->addSeries(maxwellSeries);
-
-    speedChart->setTitle(
-        "Распределение скоростей"
-        );
+    speedChart->setTitle("Распределение скоростей");
 
     speedAxisX = new QValueAxis();
     speedAxisY = new QValueAxis();
 
-    speedAxisX->setTitleText("v");
-    speedAxisY->setTitleText("N(v)");
+    speedAxisX->setTitleText("Скорость v");
+    speedAxisY->setTitleText("Плотность распределения f(v)");
 
     speedAxisX->setRange(0, 1.5);
     speedAxisX->setTickCount(6);
 
-    speedAxisY->setRange(0, 1);
-    speedAxisY->setTickCount(5);
+    speedAxisY->setRange(0, 1.5);
+    speedAxisY->setTickCount(6);
 
     speedChart->addAxis(
         speedAxisX,
@@ -63,8 +54,8 @@ GraphDialog::GraphDialog(
         speedAxisY,
         Qt::AlignLeft);
 
-    histogramSeries->attachAxis(speedAxisX);
-    histogramSeries->attachAxis(speedAxisY);
+    experimentalSeries->attachAxis(speedAxisX);
+    experimentalSeries->attachAxis(speedAxisY);
 
     maxwellSeries->attachAxis(speedAxisX);
     maxwellSeries->attachAxis(speedAxisY);
@@ -104,11 +95,14 @@ GraphDialog::GraphDialog(
     componentAxisX = new QValueAxis();
     componentAxisY = new QValueAxis();
 
+    componentAxisX->setTitleText("Компонента скорости");
+    componentAxisY->setTitleText("Количество частиц");
+
     componentAxisX->setRange(-2.0, 2.0);
     componentAxisX->setTickCount(9);
 
-    componentAxisY->setRange(-20, 160);
-    componentAxisY->setTickCount(7);
+    componentAxisY->setRange(-20, 220);
+    componentAxisY->setTickCount(6);
 
     componentChart->addAxis(
         componentAxisX,
@@ -153,6 +147,9 @@ GraphDialog::GraphDialog(
 
     pressureAxisX = new QValueAxis();
     pressureAxisY = new QValueAxis();
+
+    pressureAxisX->setTitleText("Время");
+    pressureAxisY->setTitleText("Давление");
 
     pressureAxisX->setRange(0, 200);
 
@@ -202,52 +199,54 @@ void GraphDialog::updateMaxwellGraph()
     auto speeds =
         simulation->getSpeeds();
 
-    int bins = 20;
-
-    std::vector<int> histogram(
-        bins, 0);
+    int bins = 60;
 
     float maxSpeed = 0.001f;
 
     for (float v : speeds)
     {
-        if (v > maxSpeed)
-            maxSpeed = v;
+        maxSpeed = std::max(maxSpeed, v);
     }
 
+    std::vector<float> hist(bins, 0.0f);
+
+    // Гистограмма
     for (float v : speeds)
     {
         int index =
-            (v / maxSpeed) * (bins - 1);
+            int(v / maxSpeed * (bins - 1));
 
         if (index >= 0 && index < bins)
-            histogram[index]++;
+        {
+            hist[index] += 1.0f;
+        }
     }
 
-    histogramSet->remove(
-        0,
-        histogramSet->count());
-
-    int maxCount = 1;
-
-    for (int i = 0; i < bins; ++i)
-    {
-        float dv = maxSpeed / bins;
-
-        float density =
-            histogram[i]
-            / (speeds.size() * dv);
-
-        *histogramSet << density;
-
-        if (histogram[i] > maxCount)
-            maxCount = histogram[i];
-    }
-
+    experimentalSeries->clear();
     maxwellSeries->clear();
 
+    float dv = maxSpeed / bins;
+
+    // Нормировка экспериментальной кривой
+    for (int i = 0; i < bins; ++i)
+    {
+        float x =
+            (i + 0.5f) * dv;
+
+        float density =
+            hist[i]
+            / (speeds.size() * dv);
+
+        experimentalSeries->append(x, density);
+    }
+
+    // Теория Максвелла
     float T =
         simulation->getTemperature();
+
+    float maxTheory = 0.0f;
+
+    std::vector<QPointF> theoryPoints;
 
     for (int i = 0; i < 200; ++i)
     {
@@ -263,7 +262,14 @@ void GraphDialog::updateMaxwellGraph()
             * v * v
             * std::exp(-a * v * v);
 
-        maxwellSeries->append(v, f);
+        theoryPoints.push_back(QPointF(v, f));
+
+        maxTheory = std::max(maxTheory, f);
+    }
+
+    for (auto& p : theoryPoints)
+    {
+        maxwellSeries->append(p);
     }
 
 }
@@ -370,7 +376,7 @@ void GraphDialog::updatePressureGraph()
     static float smoothPressure = 0.0f;
 
     float current =
-        simulation->getPressure();
+        simulation->consumePressure();
 
     smoothPressure =
         0.9f * smoothPressure +

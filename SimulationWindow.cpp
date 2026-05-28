@@ -1,6 +1,7 @@
 #include "SimulationWindow.h"
 #include "SimulationWidget.h"
 #include "GraphsWindow.h"
+#include "Constants.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -16,12 +17,6 @@
 SimulationWindow::SimulationWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    connect(&statsTimer,
-            &QTimer::timeout,
-            this,
-            &SimulationWindow::updateStatistics);
-
-    statsTimer.start(200);
     setWindowTitle("Simulation");
     resize(1200, 700);
 
@@ -51,17 +46,18 @@ SimulationWindow::SimulationWindow(QWidget *parent)
     QVBoxLayout* rightSide = new QVBoxLayout();
     QHBoxLayout* buttonPanel = new QHBoxLayout();
 
+    QLabel* noteText = new QLabel(NOTE_TEXT);
 
     QSlider* tempSlider = new QSlider(Qt::Horizontal);
     tempSlider->setFixedSize(300, 25);
-    tempSlider->setRange(1, 100);
+    tempSlider->setRange(1, 500);
     tempSlider->setValue(50);
     QLabel* tempValueLabel = new QLabel("Температура: " + QString::number(tempSlider->value()));
     tempValueLabel->setStyleSheet("font-size: 16px; color: black;");
 
     QSlider* countSlider = new QSlider(Qt::Horizontal);
     countSlider->setFixedSize(300, 25);
-    countSlider->setRange(10, 500);
+    countSlider->setRange(10, 3000);
     countSlider->setValue(100);
     QLabel* countValueLabel = new QLabel("Количество частиц: " + QString::number(countSlider->value()));
     countValueLabel->setStyleSheet("font-size: 16px; color: black;");
@@ -103,7 +99,24 @@ SimulationWindow::SimulationWindow(QWidget *parent)
                 dialog->exec();
             });
 
+    connect(tableButton,
+            &QPushButton::clicked,
+            this,
+            &SimulationWindow::updateStatistics);
+
+    connect(resetButton,
+            &QPushButton::clicked,
+            this,
+            &SimulationWindow::resetSimulation);
+
+
+    ///=============== ТАБЛИЦА ============
+
     statsTable = new QTableWidget(5, 2);
+
+    statsTable->setEditTriggers(
+        QAbstractItemView::NoEditTriggers);
+    statsTable->verticalHeader()->setVisible(false);
 
     statsTable->setHorizontalHeaderLabels(
         {"Параметр", "Значение"}
@@ -121,6 +134,12 @@ SimulationWindow::SimulationWindow(QWidget *parent)
     {
         statsTable->setItem(row, 1, new QTableWidgetItem(""));
     }
+
+
+
+    ///==================== РАЗМЕЩЕНИЕ =============
+
+
     controlPanel->addWidget(tempValueLabel);
     controlPanel->addWidget(tempSlider);
     controlPanel->addWidget(countValueLabel);
@@ -135,6 +154,7 @@ SimulationWindow::SimulationWindow(QWidget *parent)
 
     rightSide->addLayout(buttonPanel);
     rightSide->addWidget(statsTable, Qt::AlignCenter);
+    rightSide->addWidget(noteText);
 
     mainLayout->addLayout(leftSide, 1);
     mainLayout->addLayout(rightSide, 6);
@@ -143,27 +163,32 @@ SimulationWindow::SimulationWindow(QWidget *parent)
 void SimulationWindow::updateStatistics()
 {
     statsTable->item(0,1)->setText(
-        QString::number(
-            sim->getTemperature(), 'f', 2
-            ));
+        QString("%1 K")
+            .arg(sim->getDisplayedTemperature(), 0, 'f', 0));
 
     statsTable->item(1,1)->setText(
-        QString::number(
-            sim->getParticleCount()
-            ));
+        QString("%1 шт")
+            .arg(sim->getParticleCount()));
 
     statsTable->item(2,1)->setText(
-        QString::number(
-            sim->getAverageSpeed(), 'f', 4
-            ));
+        QString("%1 м/с")
+            .arg(sim->getAverageSpeed(), 0, 'f', 2));
 
     statsTable->item(3,1)->setText(
-        QString::number(
-            sim->getAverageEnergy(), 'f', 4
-            ));
+        QString("%1 Дж")
+            .arg(sim->getAverageEnergy(), 0, 'e', 2));
 
     statsTable->item(4,1)->setText(
-        QString::number(
-            sim->getPressure(), 'f', 4
-            ));
+        QString("%1 Па")
+            .arg(sim->getPressure(), 0, 'f', 2));
+}
+
+void SimulationWindow::resetSimulation()
+{
+    sim->resetSimulation();
+
+    for (int row = 0; row < 5; ++row)
+    {
+        statsTable->item(row,1)->setText("");
+    }
 }
