@@ -15,7 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle("Ideal Gas Model");
-    resize(900, 600);
+    resize(600, 600);
 
     setStyleSheet(
         "QMainWindow {"

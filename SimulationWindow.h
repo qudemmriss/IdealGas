@@ -7,7 +7,7 @@
 #include <QHeaderView>
 #include <QScrollArea>
 #include <QTimer>
-
+#include <QLabel>
 class SimulationWidget;
 
 class SimulationWindow : public QMainWindow
@@ -26,7 +26,14 @@ private:
     QPushButton *graphicsButton;
     QPushButton *tableButton;
     QPushButton *resetButton;
+    QPushButton *backButton;
     QTableWidget* statsTable;
+
+    QSlider* tempSlider;
+    QSlider* countSlider;
+
+    QLabel* tempValueLabel;
+    QLabel* countValueLabel;
 
 };
 

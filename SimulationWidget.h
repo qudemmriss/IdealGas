@@ -98,7 +98,7 @@ private:
     float rotationX = 25.0f;
     float rotationY = 35.0f;
 
-    float cameraDistance = 5.0f;
+    float cameraDistance = 7.0f;
 
     float displayedTemperature = 0.0f;
 
@@ -108,6 +108,7 @@ private:
     QPoint lastMousePosition;
 
     QTimer timer;
+
 };
 
 #endif

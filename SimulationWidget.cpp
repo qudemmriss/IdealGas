@@ -519,14 +519,19 @@ void SimulationWidget::updateSimulation()
 
 void SimulationWidget::resetSimulation()
 {
-    setTemperature(50);
-    setParticleCount(100);
+    currentTemperature = 50.0f;
+    displayedTemperature = 50.0f;
 
-    particles.clear();
+    createParticles(100);
 
-    initParticles();
+    pressureAccumulator = 0.0f;
+    currentPressure = 0.0f;
 
-    currentPressure = 0;
+    makeCurrent();
+    updateParticleBuffer();
+    doneCurrent();
+
+    update();
 }
 
 float SimulationWidget::getPressure() const
@@ -536,18 +541,19 @@ float SimulationWidget::getPressure() const
 
 float SimulationWidget::getTemperature() const
 {
+    if (particles.empty())
+        return 0.0f;
+
     float energy = 0.0f;
 
     for (const auto& p : particles)
     {
-        energy +=
-            p.vx * p.vx +
-            p.vy * p.vy +
-            p.vz * p.vz;
+        energy += p.vx * p.vx + p.vy * p.vy + p.vz * p.vz;
     }
 
     return energy / particles.size();
 }
+
 std::vector<float> SimulationWidget::getSpeeds() const
 {
     std::vector<float> speeds;
@@ -598,6 +604,9 @@ std::vector<float> SimulationWidget::getVZ() const
 
 float SimulationWidget::getAverageSpeed() const
 {
+    if (particles.empty())
+        return 0.0f;
+
     float sum = 0.0f;
 
     for (const auto& p : particles)
@@ -616,6 +625,9 @@ float SimulationWidget::getAverageSpeed() const
 
 float SimulationWidget::getAverageEnergy() const
 {
+    if (particles.empty())
+        return 0.0f;
+
     float sum = 0.0f;
 
     for (const auto& p : particles)
@@ -645,7 +657,14 @@ float SimulationWidget::consumePressure()
 
 void SimulationWidget::setTemperature(float value)
 {
+    if (value <= 0.0f)
+        value = 1.0f;
+
     displayedTemperature = value;
+
+    if (currentTemperature <= 0.0f)
+        currentTemperature = value;
+
     float scale = std::sqrt(value / currentTemperature);
 
     for (auto& p : particles)
@@ -665,6 +684,14 @@ float SimulationWidget::getDisplayedTemperature() const
 
 void SimulationWidget::setParticleCount(int count)
 {
+    if (count <= 0)
+        count = 1;
+
     createParticles(count);
+
+    makeCurrent();
     updateParticleBuffer();
+    doneCurrent();
+
+    update();
 }

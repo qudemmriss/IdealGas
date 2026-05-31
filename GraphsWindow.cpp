@@ -2,9 +2,11 @@
 #include "SimulationWidget.h"
 
 #include <QtCharts>
-
 #include <QVBoxLayout>
 #include <cmath>
+#include <QTabWidget>
+#include <QScreen>
+#include <QGuiApplication>
 
 GraphDialog::GraphDialog(
     SimulationWidget* sim,
@@ -13,10 +15,19 @@ GraphDialog::GraphDialog(
     simulation(sim)
 {
     setWindowTitle("Графики");
-    resize(1400, 1000);
 
-    QVBoxLayout* layout =
-        new QVBoxLayout(this);
+    QScreen* screen = QGuiApplication::primaryScreen();
+    QRect screenGeometry = screen->availableGeometry();
+
+    int w = std::min(700, int(screenGeometry.width() * 0.9));
+    int h = std::min(700, int(screenGeometry.height() * 0.9));
+
+    resize(w, h);
+
+    QVBoxLayout* layout = new QVBoxLayout(this);
+
+    QTabWidget* tabs = new QTabWidget(this);
+    layout->addWidget(tabs);
 
     // MAXWELL
 
@@ -29,6 +40,7 @@ GraphDialog::GraphDialog(
     maxwellSeries->setColor(Qt::red);
 
     speedChart = new QChart();
+    speedChart->setMargins(QMargins(5, 5, 5, 5));
 
     speedChart->addSeries(experimentalSeries);
     speedChart->addSeries(maxwellSeries);
@@ -37,11 +49,11 @@ GraphDialog::GraphDialog(
     speedAxisX = new QValueAxis();
     speedAxisY = new QValueAxis();
 
-    speedAxisX->setTitleText("Скорость v");
-    speedAxisY->setTitleText("Плотность распределения f(v)");
+    speedAxisX->setTitleText("v");
+    speedAxisY->setTitleText("f(v)");
 
-    speedAxisX->setRange(0, 1.5);
-    speedAxisX->setTickCount(6);
+    speedAxisX->setRange(0, 2.5);
+    speedAxisX->setTickCount(8);
 
     speedAxisY->setRange(0, 1.5);
     speedAxisY->setTickCount(6);
@@ -66,7 +78,7 @@ GraphDialog::GraphDialog(
     speedView->setRenderHint(
         QPainter::Antialiasing);
 
-    layout->addWidget(speedView);
+    tabs->addTab(speedView, "Скорости");
 
     // VX VY VZ
 
@@ -83,6 +95,7 @@ GraphDialog::GraphDialog(
     vzSeries->setColor(Qt::blue);
 
     componentChart = new QChart();
+    componentChart->setMargins(QMargins(5, 5, 5, 5));
 
     componentChart->addSeries(vxSeries);
     componentChart->addSeries(vySeries);
@@ -95,13 +108,13 @@ GraphDialog::GraphDialog(
     componentAxisX = new QValueAxis();
     componentAxisY = new QValueAxis();
 
-    componentAxisX->setTitleText("Компонента скорости");
-    componentAxisY->setTitleText("Количество частиц");
+    componentAxisX->setTitleText("vx, vy, vz");
+    componentAxisY->setTitleText("N");
 
     componentAxisX->setRange(-2.0, 2.0);
     componentAxisX->setTickCount(9);
 
-    componentAxisY->setRange(-20, 220);
+    componentAxisY->setRange(-20, 400);
     componentAxisY->setTickCount(6);
 
     componentChart->addAxis(
@@ -127,7 +140,7 @@ GraphDialog::GraphDialog(
     componentView->setRenderHint(
         QPainter::Antialiasing);
 
-    layout->addWidget(componentView);
+    tabs->addTab(componentView, "Компоненты");
 
     // PRESSURE
 
@@ -137,6 +150,7 @@ GraphDialog::GraphDialog(
     pressureSeries->setColor(Qt::blue);
 
     pressureChart = new QChart();
+    pressureChart->setMargins(QMargins(5, 5, 5, 5));
 
     pressureChart->addSeries(
         pressureSeries);
@@ -148,11 +162,10 @@ GraphDialog::GraphDialog(
     pressureAxisX = new QValueAxis();
     pressureAxisY = new QValueAxis();
 
-    pressureAxisX->setTitleText("Время");
-    pressureAxisY->setTitleText("Давление");
+    pressureAxisX->setTitleText("t");
+    pressureAxisY->setTitleText("P");
 
     pressureAxisX->setRange(0, 200);
-
     pressureAxisY->setRange(0, 10);
 
     pressureChart->addAxis(
@@ -175,7 +188,7 @@ GraphDialog::GraphDialog(
     pressureView->setRenderHint(
         QPainter::Antialiasing);
 
-    layout->addWidget(pressureView);
+    tabs->addTab(pressureView, "Давление");
 
     connect(&graphTimer,
             &QTimer::timeout,
