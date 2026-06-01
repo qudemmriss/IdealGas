@@ -178,12 +178,14 @@ SimulationWindow::SimulationWindow(QWidget *parent)
 
     rightSide->addWidget(statsTable);
     rightSide->addStretch();
+    rightSide->addWidget(noteText);
 
     contentLayout->addLayout(leftSide, 5);
     contentLayout->addLayout(rightSide, 1);
 
     mainLayout->addLayout(buttonPanel);
     mainLayout->addLayout(contentLayout);
+
 }
 
 void SimulationWindow::updateStatistics()
