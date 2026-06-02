@@ -14,11 +14,12 @@
 #include <QHeaderView>
 #include <QScrollArea>
 #include <QTimer>
+#include <QFont>
 
 SimulationWindow::SimulationWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("Simulation");
+    setWindowTitle("Модель идеального газа");
     resize(700, 700);
 
     QWidget* centralWidget = new QWidget(this);
@@ -49,6 +50,7 @@ SimulationWindow::SimulationWindow(QWidget *parent)
     QHBoxLayout* buttonPanel = new QHBoxLayout();
 
     QLabel* noteText = new QLabel(NOTE_TEXT);
+    noteText->setStyleSheet("font-size: 16px; padding: 20px;");
 
     tempSlider = new QSlider(Qt::Horizontal);
     tempSlider->setFixedSize(300, 25);
@@ -131,8 +133,8 @@ SimulationWindow::SimulationWindow(QWidget *parent)
     ///=============== ТАБЛИЦА ============
 
     statsTable = new QTableWidget(5, 2);
-    statsTable->setMaximumWidth(350);
-    statsTable->setMinimumWidth(250);
+    statsTable->setMaximumWidth(450);
+    statsTable->setMinimumWidth(350);
 
     statsTable->setEditTriggers(
         QAbstractItemView::NoEditTriggers);
@@ -144,14 +146,18 @@ SimulationWindow::SimulationWindow(QWidget *parent)
 
     statsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 
-    statsTable->verticalHeader()->setDefaultSectionSize(25);
-    statsTable->setMaximumHeight(180);
+    statsTable->verticalHeader()->setDefaultSectionSize(40);
+    statsTable->setMaximumHeight(280);
 
     statsTable->setItem(0, 0, new QTableWidgetItem("Температура"));
     statsTable->setItem(1, 0, new QTableWidgetItem("Количество частиц"));
     statsTable->setItem(2, 0, new QTableWidgetItem("Средняя скорость"));
     statsTable->setItem(3, 0, new QTableWidgetItem("Средняя кин. энергия"));
     statsTable->setItem(4, 0, new QTableWidgetItem("Давление"));
+
+    QFont font = statsTable->font();
+    font.setPointSize(16);
+    statsTable->setFont(font);
 
     for (int row = 0; row < 5; ++row)
     {

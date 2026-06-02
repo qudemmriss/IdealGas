@@ -13,6 +13,7 @@ GraphDialog::GraphDialog(
     QWidget *parent)
     : QDialog(parent),
     simulation(sim)
+
 {
     setWindowTitle("Графики");
 
@@ -196,6 +197,13 @@ GraphDialog::GraphDialog(
             &GraphDialog::updateGraphs);
 
     graphTimer.start(100);
+}
+
+GraphDialog::~GraphDialog()
+{
+    graphTimer.stop();
+
+    disconnect(&graphTimer, nullptr, this, nullptr);
 }
 
 void GraphDialog::updateGraphs()

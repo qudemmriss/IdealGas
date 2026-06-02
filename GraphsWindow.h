@@ -22,6 +22,7 @@ public:
     explicit GraphDialog(
         SimulationWidget* sim,
         QWidget *parent = nullptr);
+    ~GraphDialog();
 
 private slots:
     void updateGraphs();
