@@ -7,6 +7,9 @@
 #include <QTabWidget>
 #include <QScreen>
 #include <QGuiApplication>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QSpinBox>
 
 GraphDialog::GraphDialog(
     SimulationWidget* sim,
@@ -50,11 +53,11 @@ GraphDialog::GraphDialog(
     speedAxisX = new QValueAxis();
     speedAxisY = new QValueAxis();
 
-    speedAxisX->setTitleText("v");
+    speedAxisX->setTitleText("v, м/с");
     speedAxisY->setTitleText("f(v)");
 
     speedAxisX->setRange(0, 2.5);
-    speedAxisX->setTickCount(8);
+    speedAxisX->setTickCount(6);
 
     speedAxisY->setRange(0, 1.5);
     speedAxisY->setTickCount(6);
@@ -116,7 +119,7 @@ GraphDialog::GraphDialog(
     componentAxisX->setTickCount(9);
 
     componentAxisY->setRange(-20, 400);
-    componentAxisY->setTickCount(6);
+    componentAxisY->setTickCount(13);
 
     componentChart->addAxis(
         componentAxisX,
@@ -145,16 +148,19 @@ GraphDialog::GraphDialog(
 
     // PRESSURE
 
-    pressureSeries =
-        new QLineSeries();
-
+    pressureSeries = new QLineSeries();
+    pressureSeries->setName("Эксперимент");
     pressureSeries->setColor(Qt::blue);
+
+    pressureTheorySeries = new QSplineSeries();
+    pressureTheorySeries->setName("Теория идеального газа");
+    pressureTheorySeries->setColor(Qt::red);
 
     pressureChart = new QChart();
     pressureChart->setMargins(QMargins(5, 5, 5, 5));
 
-    pressureChart->addSeries(
-        pressureSeries);
+    pressureChart->addSeries(pressureSeries);
+    pressureChart->addSeries(pressureTheorySeries);
 
     pressureChart->setTitle(
         "Давление на стенки"
@@ -163,8 +169,8 @@ GraphDialog::GraphDialog(
     pressureAxisX = new QValueAxis();
     pressureAxisY = new QValueAxis();
 
-    pressureAxisX->setTitleText("t");
-    pressureAxisY->setTitleText("P");
+    pressureAxisX->setTitleText("t, с");
+    pressureAxisY->setTitleText("P, Па");
 
     pressureAxisX->setRange(0, 200);
     pressureAxisY->setRange(0, 10);
@@ -177,11 +183,32 @@ GraphDialog::GraphDialog(
         pressureAxisY,
         Qt::AlignLeft);
 
-    pressureSeries->attachAxis(
-        pressureAxisX);
+    pressureSeries->attachAxis(pressureAxisX);
+    pressureSeries->attachAxis(pressureAxisY);
 
-    pressureSeries->attachAxis(
-        pressureAxisY);
+    pressureTheorySeries->attachAxis(pressureAxisX);
+    pressureTheorySeries->attachAxis(pressureAxisY);
+
+    QWidget* pressureTab = new QWidget(this);
+    QVBoxLayout* pressureLayout = new QVBoxLayout(pressureTab);
+
+    QHBoxLayout* pressureControls = new QHBoxLayout();
+
+    QLabel* rangeLabel =
+        new QLabel("Показывать последних точек:", pressureTab);
+
+    pressureRangeSpin =
+        new QSpinBox(pressureTab);
+
+    pressureRangeSpin->setRange(50, 2000);
+    pressureRangeSpin->setSingleStep(50);
+    pressureRangeSpin->setValue(pressureVisiblePoints);
+
+    pressureControls->addWidget(rangeLabel);
+    pressureControls->addWidget(pressureRangeSpin);
+    pressureControls->addStretch();
+
+    pressureLayout->addLayout(pressureControls);
 
     QChartView* pressureView =
         new QChartView(pressureChart);
@@ -189,7 +216,17 @@ GraphDialog::GraphDialog(
     pressureView->setRenderHint(
         QPainter::Antialiasing);
 
-    tabs->addTab(pressureView, "Давление");
+    pressureLayout->addWidget(pressureView);
+
+    tabs->addTab(pressureTab, "Давление");
+
+    connect(pressureRangeSpin,
+            QOverload<int>::of(&QSpinBox::valueChanged),
+            this,
+            [this](int value)
+            {
+                pressureVisiblePoints = value;
+            });
 
     connect(&graphTimer,
             &QTimer::timeout,
@@ -403,24 +440,53 @@ void GraphDialog::updatePressureGraph()
         0.9f * smoothPressure +
         0.1f * current;
 
+    int N =
+        simulation->getParticleCount();
+
+    const float volume = 8.0f;
+
+    float averageEnergy =
+        simulation->getAverageEnergy();
+
+    float theoryPressure =
+        2.0f * N * averageEnergy
+        / (3.0f * volume);
+
     pressureSeries->append(
-        pressureTime++,
+        pressureTime,
         smoothPressure
         );
 
-    if (pressureSeries->count() > 200)
+    pressureTheorySeries->append(
+        pressureTime,
+        theoryPressure
+        );
+
+    pressureTime++;
+
+    while (pressureSeries->count() > pressureVisiblePoints)
     {
         pressureSeries->remove(0);
     }
 
+    while (pressureTheorySeries->count() > pressureVisiblePoints)
+    {
+        pressureTheorySeries->remove(0);
+    }
+
     pressureAxisX->setRange(
-        std::max(0, pressureTime - 200),
+        std::max(0, pressureTime - pressureVisiblePoints),
         pressureTime
         );
 
+    float maxPressure =
+        std::max(
+            smoothPressure,
+            theoryPressure
+            );
+
     pressureAxisY->setRange(
         0,
-        std::max(1.0,
-                 smoothPressure * 1.5)
+        std::max(1.0f, maxPressure * 1.5f)
         );
 }

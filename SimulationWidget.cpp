@@ -436,7 +436,8 @@ void SimulationWidget::resolveCollision(
 void SimulationWidget::resolveWallCollision(
     float& pos,
     float& vel,
-    float radius)
+    float radius,
+    float mass)
 {
     const float min = -1.0f + radius;
     const float max =  1.0f - radius;
@@ -445,7 +446,8 @@ void SimulationWidget::resolveWallCollision(
     {
         pos = min;
 
-        float impulse = 2.0f * std::abs(vel);
+        float impulse =
+            2.0f * mass * std::abs(vel);
 
         pressureAccumulator += impulse;
 
@@ -456,7 +458,8 @@ void SimulationWidget::resolveWallCollision(
     {
         pos = max;
 
-        float impulse = 2.0f * std::abs(vel);
+        float impulse =
+            2.0f * mass * std::abs(vel);
 
         pressureAccumulator += impulse;
 
@@ -492,23 +495,31 @@ void SimulationWidget::updateSimulation()
             resolveWallCollision(
                 p.x,
                 p.vx,
-                p.radius);
+                p.radius,
+                p.mass);
 
             resolveWallCollision(
                 p.y,
                 p.vy,
-                p.radius);
+                p.radius,
+                p.mass);
 
             resolveWallCollision(
                 p.z,
                 p.vz,
-                p.radius);
+                p.radius,
+                p.mass);
         }
     }
 
-    currentPressure =
+    float instantPressure =
         pressureAccumulator
         / (6.0f * wallArea * dt);
+
+    currentPressure = instantPressure;
+
+    pressureSum += instantPressure;
+    pressureSamples++;
 
     pressureAccumulator = 0.0f;
 
@@ -526,6 +537,8 @@ void SimulationWidget::resetSimulation()
 
     pressureAccumulator = 0.0f;
     currentPressure = 0.0f;
+    pressureSum = 0.0f;
+    pressureSamples = 0;
 
     makeCurrent();
     updateParticleBuffer();
@@ -650,9 +663,16 @@ int SimulationWidget::getParticleCount() const
 
 float SimulationWidget::consumePressure()
 {
-    float p = currentPressure;
-    currentPressure = 0.0f;
-    return p;
+    if (pressureSamples == 0)
+        return currentPressure;
+
+    float averagePressure =
+        pressureSum / pressureSamples;
+
+    pressureSum = 0.0f;
+    pressureSamples = 0;
+
+    return averagePressure;
 }
 
 void SimulationWidget::setTemperature(float value)

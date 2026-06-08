@@ -77,7 +77,7 @@ private:
 
     void buildSpatialGrid();
 
-    void resolveWallCollision(float& pos, float& vel, float radius);
+    void resolveWallCollision(float& pos, float& vel, float radius, float mass);
     void solveCollisions();
     void resolveCollision(Particle& a, Particle& b);
 
@@ -94,6 +94,9 @@ private:
     float currentTemperature = 50.0f;
     float pressureAccumulator = 0.0f;
     float currentPressure = 0.0f;
+
+    float pressureSum = 0.0f;
+    int pressureSamples = 0;
 
     float rotationX = 25.0f;
     float rotationY = 35.0f;

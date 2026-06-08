@@ -11,6 +11,7 @@
 #include <QtCharts/QValueAxis>
 #include <QtCharts/QBarSeries>
 #include <QtCharts/QBarSet>
+#include <QSpinBox>
 
 class SimulationWidget;
 
@@ -63,11 +64,16 @@ private:
     QChart* pressureChart;
 
     QLineSeries* pressureSeries;
+    QSplineSeries* pressureTheorySeries;
 
     QValueAxis* pressureAxisX;
     QValueAxis* pressureAxisY;
 
+    QSpinBox* pressureRangeSpin = nullptr;
+
+    int pressureVisiblePoints = 200;
     int pressureTime = 0;
+
 };
 
 #endif
